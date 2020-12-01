@@ -1,0 +1,117 @@
+#Defender Disabled
+type=SingleWithSuppress
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) SecurityCenter\[\d+\]: EventID:\[\d+\] .+ SECURITY_PRODUCT_STATE_SNOOZED\.
+desc=Windows Defender disabled at $1 
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Defender disabled' root@localhost; write /opt/logs/SEC/detected.log %t %s
+window=60
+
+#Defender discovered malware
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Windows_Defender\[\d+\]: EventID:\[\d+\] .+ has detected malware .+ #011Name: (.+) #011ID: .+ #011Path: (.+) #011Detection Origin: .+ #011Process Name: (.+) #011Security
+desc=Windows Defender has discovered malware at $1. Malware name:$2 Path:$3 Process:$4
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Malware discovered' root@localhost; write /opt/logs/SEC/detected.log %t %s
+
+#Event Log file was cleared
+#type=Single
+#ptype=RegExp
+#pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Eventlog\[\d+\]: EventID:\[\d+\] The ([\w-\/\s]+) log
+#desc=The $2 log has been cleared from $1
+#action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Event log cleared' root@localhost; write /opt/logs/SEC/detected.log %t %s
+
+#Event Log file was cleared
+#all events that are generated in 60 seconds are sent to email
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Eventlog\[\d+\]: EventID:\[\d+\] The ([\w\-\/\s]+) log
+desc=The $2 log has been cleared from $1
+action=exists %iscreated EVENT_CLEARED_$1;if %iscreated (add EVENT_CLEARED_$1 %s;) else (create EVENT_CLEARED_$1 60 (report EVENT_CLEARED_$1 /bin/mailx -r noreply@someplace.com -s 'Events Cleared' root@localhost); add EVENT_CLEARED_$1 %s;)
+
+#Potentially malicious command
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+New Process ID:#011#011([\w\d]+)  #011New Process Name:#011([\w:\\\.]+(cmd|powershell)\.exe) .+#011Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011([\w:\\\.]+).+ -w hidden -ENCOD
+desc=Discovered a potentially malicious $3 process ID $2 started by $6 process ID$5 on $1
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potentially malicious command run' root@localhost; write /opt/logs/SEC/detected.log %t %s
+
+#Scriptblock created
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-PowerShell\[\d+\]: EventID:\[\d+\] Creating Scriptblock text
+desc=Scriptblock created on $1
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Scriptblock created' root@localhost; write /opt/logs/SEC/detected.log %t %s
+
+#Agent tesla
+#something starts schtasks.exe and creats schtask /TN "Updates\<some name>" (/TN - taskname) 
+#that same schtasks.exe starts conhost.exe
+#schtask with "Updates\<some name>" created
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+New Process ID:#011#011([\w\d]+)  #011New Process Name:#011[\w:\\\.]+schtasks\.exe.+\/TN "([\w\d\\]+)"
+context=!AT1_$1_$2 && !AT1_$1_$3
+desc=AT1_$1_$2 and AT1_$1_$3
+action=create AT1_$1_$2 60;create AT1_$1_$3 60;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+#011New Process Name:#011[\w:\\\.]+conhost\.exe.+Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011[\w:\\\.]+schtasks\.exe
+context=AT1_$1_$2 && !AT2_$1
+desc=AT2_$1
+action=create AT2_$1 60;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-TaskScheduler\[\d+\]: EventID:\[\d+\] .+registered Task Scheduler task "\\([\w\d\\]+)"
+context=AT1_$1_$2 && AT2_$1
+desc=Potential Agent Tesla on $1 with task name $2
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Agent Tesla' root@localhost;write /opt/logs/SEC/detected.log %t %s
+
+
+#Trickbot
+#svchost starts dllhost with process command line DllHost.exe
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+New Process ID:#011#011([\w\d]+)  #011New Process Name:#011[\w:\\\.]+dllhost\.exe.+svchost\.exe.+DllHost\.exe
+context=!TB1_$1_$2
+desc=TB1_$1_$2
+action=create TB1_$1_$2 60;write /opt/logs/SEC/detected.log %t %s
+
+#dllhost start trickbot
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+New Process ID:#011#011([\w\d]+)  #011New Process Name:#011([\w:\\\.]+).+Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011[\w:\\\.]+dllhost\.exe
+context=TB1_$1_$4 && !TB2_$1_$2_$3
+desc=TB2_$1_$2_$3
+action=create TB2_$1_$2_$3 60;write /opt/logs/SEC/detected.log %t %s
+
+#Trickbot starts wermgr.exe
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+#011New Process Name:#011[\w:\\\.]+wermgr\.exe.+Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011([\w:\\\.]+)
+context=TB2_$1_$2_$3 && !TB3_$1
+desc=TB3_$1
+action=create TB3_$1 600;pipe 'TB2_$1_$2_$3' /bin/mailx -r noreply@someplace.com -s 'Potential Trickbot stage 3' root@localhost;write /opt/logs/SEC/detected.log %t %s
+
+#Windwos Power Saves named task started
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-TaskScheduler\[\d+\]: EventID:\[\d+\].+Windows Power Saves
+context=TB3_$1 && !TB4_$1
+desc=TB4_$1
+action=create TB4_$1 60;write /opt/logs/SEC/detected.log %t %s
+
+#Windows Power Saves starts trickbot
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-TaskScheduler\[\d+\]: EventID:\[\d+\].+action "([\w:\\\.\ ]+).+Windows Power Saves
+context=TB4_$1
+desc=Potential Trickbot at $1 task $2
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Trickbot stage 5' root@localhost;write /opt/logs/SEC/detected.log %t %s
+
+#Valak starts wscript.exe
+type=Single
+ptype=RegExp
+pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+#011New Process Name:#011[\w:\\\.]+wscript\.exe.+#011Creator Process Name:#011[\w:\\\.]+regsvr32\.exe
+desc=Potential Valak at $1
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Valak' root@localhost;write /opt/logs/SEC/detected.log %t %s
