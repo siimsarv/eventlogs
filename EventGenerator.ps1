@@ -10,7 +10,7 @@
 #New-EventLog -LogName Application -Source "Test Source"
 
 #how many events to send
-$max = 10
+$max = 200000
 
 #Sending a message to user that script has started
 Write-Host "Starting..."
