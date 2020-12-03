@@ -115,3 +115,59 @@ ptype=RegExp
 pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been created.+#011New Process Name:#011[\w:\\\.]+wscript\.exe.+#011Creator Process Name:#011[\w:\\\.]+regsvr32\.exe
 desc=Potential Valak at $1
 action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Valak' root@localhost;write /opt/logs/SEC/detected.log %t %s
+
+#XMRig
+#XMRig starts itself
+#the new XMRig starts notepad with command line -c <file location>
+#xmrig starts cmd with ommand line wscript <script location>
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been create.+#011New Process ID:#011#011([\w\d]+)  #011New Process Name:#011(.+)  #011Token.+#011Creator Process Name:#011(.+)  #
+context=!XMRig_$1_$2 && =("$3" eq "$4")
+desc=XMRig_$1_$2 $3
+action=create XMRig_$1_$2 60;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been create.+#011New Process Name:#011[\w:\\\.]+notepad\.exe.+#011Creator Process ID:#011([\w\d]+).+Command Line:#011"(.+)"
+context=XMRig_$1_$2 && !XMRig2_$1_$2
+desc=XMRig2_$1 $3
+action=create XMRig2_$1_$2 60;write /opt/logs/SEC/detected.log %t %s
+
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been create.+#011New Process Name:#011[\w:\\\.]+cmd\.exe.+#011Creator Process ID:#011([\w\d]+).+Command Line:#011(.+)"
+context=XMRig2_$1_$2 && !XMRig3_$1
+desc=Potential XMRig at $1 $3
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential XMRig' root@localhost;create XMRig3_$1 60;write /opt/logs/SEC/detected.log %t %s
+
+#Glupteba
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been create.+#011New Process ID:#011#011([\w\d]+).+\/C fodhelper
+context=!Glupteba_$1_$2
+desc=Glupteba_$1_$2
+action=create Glupteba_$1_$2 60;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been create.+#011New Process ID:#011#011([\w\d]+)  #011New Process Name:#011[\w:\\\.]+fodhelper\.exe.+#011Creator Process ID:#011([\w\d]+)
+context=Glupteba_$1_$3 && !Glupteba2_$1_$2
+desc=Glupteba2_$1_$2
+action=create Glupteba2_$1_$2 60;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been create.+#011New Process ID:#011#011([\w\d]+)  #011New Process Name:#011([\w:\\\.]+).+#011Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011[\w:\\\.]+fodhelper\.exe
+context=Glupteba2_$1_$4 && !Glupteba3_$1_$2_$3
+desc=Glupteba3_$1_$2_$3
+action=create Glupteba3_$1_$2_$3 60;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) Microsoft-Windows-Security-Auditing\[\d+\]: EventID:\[\d+\] A new process has been create.+#011New Process Name:#011[\w:\\\.]+WerFault\.exe.+#011Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011([\w:\\\.]+)
+context=Glupteba3_$1_$2_$3
+desc=Potential malware Glupteba at $1 file $3
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Glupteba' root@localhost;write /opt/logs/SEC/detected.log %t %s
+
