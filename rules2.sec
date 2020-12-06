@@ -114,7 +114,6 @@ window=180
 
 #Execution
 #service cmd_exec - 4657 - 7054 - 7040
-
 type=Single
 ptype=RegExp
 pattern=[\d\:\-\+T]+ (\w+).+EventID:\[7054\]
