@@ -1,0 +1,132 @@
+#4688 execution then cmd
+type=pair
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) .+EventID:\[4688\].+#011New Process ID:#011#011([\w\d]+).+#011Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011[\w:\\\.]+(?<!cmd).exe
+context=!cmd_$1_$3
+desc=exec_$1_$2
+action=create exec_$1_$2 5;write /opt/logs/SEC/detected.log %t %s
+ptype2=RegExp
+pattern2=[\d\:\-\+T]+ $1 .+EventID:\[4688\].+#011Creator Process ID:#011$2  #011Creator Process Name:#011[\w:\\\.]+cmd
+context2=!exec_cmd_%1
+desc2=exec_cmd_%1
+action2=create exec_cmd_%1 10;write /opt/logs/SEC/detected.log %t %s
+
+
+#4688 cmd then execution
+type=pair
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+) .+EventID:\[4688\].+#011New Process ID:#011#011([\w\d]+).+#011Creator Process ID:#011([\w\d]+)  #011Creator Process Name:#011[\w:\\\.]+cmd
+context=!exec_$1_$3
+desc=cmd_$1_$2
+action=create cmd_$1_$2 5;write /opt/logs/SEC/detected.log %t %s
+ptype2=RegExp
+pattern2=[\d\:\-\+T]+ $1 .+EventID:\[4688\].+#011Creator Process ID:#011$2  #011Creator Process Name:#011[\w:\\\.]+(?<!cmd).exe
+context2=!cmd_exec_%1
+desc2=cmd_exec_%1
+action2=create cmd_exec_%1 10;write /opt/logs/SEC/detected.log %t %s
+
+#this is currently commented out for testing purposes. Since we generate events with powershell
+#collection - data from local system
+#exec_cmd - powershell 100-500, 4100-4104 - 4663 - 5861
+#type=Single
+#ptype=RegExp
+#pattern=[\d\:\-\+T]+ (\w+).+PowerShell.+EventID:\[(\d+)\]
+#context=exec_cmd_$1 && !col1_ds1_$1 && (=("$2" >= 100 && "$2" <= 500) || =("$2" >= 4100 && "$2" <= 4104))
+#desc=col1_ds1_$1
+#action=create col1_ds1_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[4663\]
+context=col1_ds1_$1 && !col1_ds2_$1
+desc=col1_ds2_$1
+action=create col1_ds2_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[5861\]
+context=col1_ds2_$1 && !col1_ds3_$1
+desc=Potential Collection - data from local system or Potential Discovery - system net conf at $1. Look for exec_cmd - powershell 100-500, 4100-4104 - 4663 - 586
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Collection or Discovery' root@localhost;create col1_ds3_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+
+#collection - data from network shared drive
+#cmd_exec - 5140/5145 - 4663
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[(\d+)\]
+context=cmd_exec_$1 && !col2_ds1_$1 && =("$2" == 5140 || "$2" == 5145) && !col3_ds1_$1
+desc=col2_ds1_$1 
+action=create col2_ds1_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[4663\]
+context=col2_ds1_$1 && !col2_ds2_$1
+desc=Potential Collection - data from network shared drive at $1. Look for cmd_exec - 5140/5145 - 4663
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Collection' root@localhost;create col2_ds2_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+
+#defence evasion - net share connection removal
+#cmd_exec - 5140/5145 - 4624
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[4624\]
+context=col2_ds1_$1 && !def1_ds2_$1
+desc=Potential defence evasion - network share connection removal. Look for cmd_exec - 5140/5145 - 4624
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Defence evasion' root@localhost;create def1_ds2_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+
+#collection - data from removeble media
+#cmd_exec - 4657 - 4663 - 5140/5145
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[4657\]
+context=exec_cmd_$1 && !col3_ds1_$1
+desc=col3_ds1_$1
+action=create col3_ds1_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[4663\]
+context=col3_ds1_$1 && !col3_ds2_$1
+desc=col3_ds2_$1
+action=create col3_ds2_$1 5;write /opt/logs/SEC/detected.log %t %s;pipe 'Potential Execution - powershell at $1. Look for cmd_exec - 4657 - 4663' /bin/mailx -r noreply@someplace.com -s 'Potential Collection' root@localhost;
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[(\d+)\]
+context=col3_ds2_$1 && !col3_ds3_$1 && =("$2" == 5140 || "$2" == 5145)
+desc=Potential collection - data from removable media. Look for cmd_exec - 4657 - 4663 - 5140/5145
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Collection' root@localhost;create col3_ds3_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+
+#Credential access Brute Force
+#4625 more then X ammount of times
+type=SingleWithThreshold
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[4625\]
+desc=Potential Bruteforce at $1. Look fr 4625
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Bruteforce' root@localhost;write /opt/logs/SEC/detected.log %t %s
+thresh=5
+window=180
+
+
+#Execution
+#service cmd_exec - 4657 - 7054 - 7040
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[7054\]
+context=col3_ds1_$1 && !exe1_ds2_$1
+desc=exe1_ds2_$1
+action=create exe1_ds2_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+EventID:\[7040\]
+context=exe1_ds2_$1 && !exe1_ds3_$1
+desc=Potential execution - service at $1. Look for cmd_exec - 4657 - 7054 - 7040
+action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Potential Execution' root@localhost;create exe1_ds3_$1 5;write /opt/logs/SEC/detected.log %t %s
+
+
