@@ -28,12 +28,12 @@ action2=create cmd_exec_%1 10;write /opt/logs/SEC/detected.log %t %s
 #this is currently commented out for testing purposes. Since we generate events with powershell
 #collection - data from local system
 #exec_cmd - powershell 100-500, 4100-4104 - 4663 - 5861
-#type=Single
-#ptype=RegExp
-#pattern=[\d\:\-\+T]+ (\w+).+PowerShell.+EventID:\[(\d+)\]
-#context=exec_cmd_$1 && !col1_ds1_$1 && (=("$2" >= 100 && "$2" <= 500) || =("$2" >= 4100 && "$2" <= 4104))
-#desc=col1_ds1_$1
-#action=create col1_ds1_$1 5;write /opt/logs/SEC/detected.log %t %s
+type=Single
+ptype=RegExp
+pattern=[\d\:\-\+T]+ (\w+).+PowerShell.+EventID:\[(\d+)\]
+context=exec_cmd_$1 && !col1_ds1_$1 && (=("$2" >= 100 && "$2" <= 500) || =("$2" >= 4100 && "$2" <= 4104))
+desc=col1_ds1_$1
+action=create col1_ds1_$1 5;write /opt/logs/SEC/detected.log %t %s
 
 type=Single
 ptype=RegExp
