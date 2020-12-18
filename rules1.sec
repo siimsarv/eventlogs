@@ -40,7 +40,7 @@ type=Single
 ptype=RegExp
 pattern=^[\d\:\-\+T]+ (\w+) Microsoft-Windows-PowerShell\[\d+\]: EventID:\[\d+\] Creating Scriptblock text
 desc=Scriptblock created on $1
-action=pipe '%s' /bin/mailx -r noreply@someplace.com -s 'Scriptblock created' root@localhost; write /opt/logs/SEC/detected.log %t %s
+action=write /opt/logs/SEC/detected.log %t %s
 
 #Agent tesla
 #something starts schtasks.exe and creats schtask /TN "Updates\<some name>" (/TN - taskname) 
