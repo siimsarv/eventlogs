@@ -9,7 +9,7 @@ ptype2=RegExp
 pattern2=[\d\:\-\+T]+ $1 .+EventID:\[4688\].+#011Creator Process ID:#011$2  #011Creator Process Name:#011[\w:\\\.]+cmd
 context2=!exec_cmd_%1
 desc2=exec_cmd_%1
-action2=create exec_cmd_%1 10;write /opt/logs/SEC/detected.log %t %s
+action2=create exec_cmd_%1 10
 window=60
 
 
@@ -24,7 +24,7 @@ ptype2=RegExp
 pattern2=[\d\:\-\+T]+ $1 .+EventID:\[4688\].+#011Creator Process ID:#011$2  #011Creator Process Name:#011[\w:\\\.]+(?<!cmd).exe
 context2=!cmd_exec_%1
 desc2=cmd_exec_%1
-action2=create cmd_exec_%1 10;write /opt/logs/SEC/detected.log %t %s
+action2=create cmd_exec_%1 10
 window=60
 
 #this is currently commented out for testing purposes. Since we generate events with powershell
